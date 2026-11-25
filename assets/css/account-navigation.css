@@ -1,0 +1,14 @@
+.dashboard-content .profile-links {
+  display:flex; flex-wrap:wrap; gap:.6rem; margin:.75rem 0 1rem;
+}
+.dashboard-shell :is(.profile-links a, .account-link, a.logout, .account-exit, .account-detail a.btn, .account-detail a[href^="mailto:"][href*="subject="], .dashboard-topbar-actions a[href="#notificacoes"]) {
+  display:inline-flex; align-items:center; justify-content:center; box-sizing:border-box;
+  width:fit-content; max-width:100%; min-height:2.5rem; padding:.55rem 1rem;
+  margin:0; border:0; border-radius:8px; background:var(--lima,#c7ff38);
+  color:var(--grafite,#173f40); font:inherit; font-weight:700; line-height:1.35;
+  text-align:center; text-decoration:none; overflow-wrap:anywhere; cursor:pointer;
+}
+.dashboard-shell .profile-links a[aria-current="page"] {box-shadow:inset 0 0 0 2px currentColor}
+.dashboard-shell :is(.profile-links a,.account-link,.account-exit,a.logout):hover {text-decoration:underline}
+.dashboard-topbar-actions {display:flex; gap:.75rem; align-items:center; flex-wrap:wrap}
+.dashboard-topbar-actions form {margin:0}

@@ -1,53 +1,59 @@
-# Fluxon — aplicação das correções no XAMPP
+> Instale também a migração financeira e confira [INSTALAR_FASE3.md](INSTALAR_FASE3.md).
 
-## Estado desta entrega
-Código preparado sobre o commit 2dc9339. Ainda requer instalação das dependências, migração do banco e testes locais. Não houve envio ao GitHub nem teste real de Google/SMTP. O protótipo HTML permanece apenas demonstrativo; use index.php para avaliar autenticação.
+# Configuração e atualização
 
-## 1. Preparar
-1. Faça cópia da pasta atual e exporte o banco fluxon pelo phpMyAdmin.
-2. Extraia os arquivos do pacote em C:\xampp\htdocs\fluxon_projeto. Preserve seus dados e compare eventuais alterações locais antes de substituir arquivos.
-3. Use PHP 8.1 ou superior, com pdo_mysql, curl e openssl habilitados no php.ini do XAMPP.
-4. Instale o Composer usando o PHP do XAMPP. No terminal do VS Code aberto na pasta do projeto, execute `composer install`. Isso gera vendor e composer.lock; inclua composer.lock no próximo commit após instalação bem-sucedida.
-5. Para banco existente, importe database/migracao_001.sql UMA VEZ. Para banco novo, importe apenas database/schema.sql. Não execute ambos. A migração invalida códigos antigos, preservando usuários.
-6. Copie config.local.example.php para config.local.php. Preencha os valores localmente, sem enviar esse arquivo ao GitHub ou ao chat.
+## Instalação nova
 
-## 2. E-mail real
-Em config.local.php, configure smtp.host, port, user, pass, secure e from conforme seu provedor. Para porta 587, normalmente use tls; para 465, ssl. Use o remetente autorizado pelo serviço. Se o provedor exigir senha de aplicativo, use-a no lugar da senha comum. Não desative a validação de certificados.
+1. Use PHP 8.1 ou superior com `pdo_pgsql`, `pgsql`, `curl`, `openssl`, `gd` e `fileinfo`. No XAMPP, remova o `;` de `extension=pdo_pgsql` e `extension=pgsql` no `php.ini` e reinicie o Apache. Execute o Composer com o mesmo PHP do XAMPP.
+2. Execute `composer install` na raiz. O `composer.lock` existente fixa a versão de PHPMailer; `vendor/` será recriado.
+3. No Supabase, crie um projeto (anote a senha do banco). Abra **SQL Editor**, cole `database/schema.sql` e execute. O script pode ser repetido sem erro e já liga o RLS em todas as tabelas.
+4. Copie `.env.example` para `.env` (na raiz, ao lado do `index.php`). No Supabase clique em **Connect** e escolha **Session pooler**: copie o host para `DB_HOST`, a porta 5432 para `DB_PORT` e o usuário `postgres.SEU_PROJECT_REF` para `DB_USER`; `DB_PASS` é a senha do passo 3 (sem aspas e sem codificar caracteres especiais). O `config.local.php` ainda é aceito; se os dois existirem, o `.env` vence.
+5. Configure `base` com a URL exata do `index.php`. O exemplo usa `http://localhost/fluxon_projeto-main/index.php`.
+6. Inicie o Apache e abra a aplicação.
 
-O sistema usa PHPMailer por SMTP. Códigos e links não aparecem na tela nem são gravados em emails.log. Falhas no envio do código impedem o acesso e mostram uma mensagem; falhas de recuperação são registradas sem expor endereço ou token, mantendo uma resposta genérica para evitar revelar contas cadastradas. Verifique a caixa de spam.
+### Qual conexão do Supabase usar
 
-## 3. Google
-1. Abra Google Cloud Console e selecione/crie um projeto.
-2. Configure a tela de consentimento/Google Auth Platform. Se estiver em modo de teste, inclua os e-mails dos participantes como usuários de teste.
-3. Crie um cliente OAuth do tipo aplicação Web.
-4. Cadastre exatamente a URI de retorno: http://localhost/fluxon_projeto/index.php?p=gcb
-5. Copie Client ID e Client Secret para google.id e google.secret em config.local.php.
-6. Mantenha base igual a http://localhost/fluxon_projeto/index.php. Se mudar pasta ou domínio, atualize base e a URI cadastrada no Google.
-7. Teste com uma conta Google. Após o retorno, conclua o código enviado por e-mail para acessar o painel.
+| Conexão                         | Usar?                                                                                     |
+| ------------------------------- | ----------------------------------------------------------------------------------------- |
+| Session pooler (porta 5432)     | **Sim.** Funciona em IPv4 (rede de casa/faculdade) e aceita prepared statements.           |
+| Direct connection (`db.REF...`) | Só se sua rede tiver IPv6. Caso contrário o PHP não conecta.                              |
+| Transaction pooler (porta 6543) | **Não.** Quebra os prepared statements do PDO.                                            |
 
-Referência oficial: https://developers.google.com/identity/openid-connect/openid-connect
-SMTP: https://github.com/PHPMailer/PHPMailer
+O PHP conecta com o usuário do banco, não com as chaves `anon`/`service_role` do Supabase. Não coloque essas chaves no projeto. A senha do banco só vai em `.env` (ou `config.local.php`).
 
-## 4. Testes de aceitação — registrar resultado real
-- [ ] Splash abre e encaminha à tela inicial.
-- [ ] Cadastro rejeita senha fraca e confirmação divergente.
-- [ ] Cadastro válido envia código real; painel permanece bloqueado até confirmar.
-- [ ] E-mail é marcado como verificado após confirmação correta.
-- [ ] Login tradicional exige senha e código em uma nova sessão.
-- [ ] Código incorreto, expirado, reutilizado ou com cinco erros é recusado.
-- [ ] Login Google completa o retorno e exige o código de e-mail.
-- [ ] Recuperação envia link real; link expira após uma hora.
-- [ ] Nova senha fraca é recusada; senha anterior deixa de funcionar após troca.
-- [ ] Link já usado é recusado e sessões anteriores perdem acesso ao painel.
-- [ ] Abrir ?p=painel sem autenticação redireciona ao login.
-- [ ] Falha no SMTP não concede acesso nem mostra códigos.
-- [ ] config.local.php, .git e arquivos SQL/log não são acessíveis pelo Apache.
+## Vindo da versão MySQL
 
-Faça os testes com contas próprias/de teste. Guarde capturas sem senhas, tokens ou segredos. Anexe o documento teórico corrigido à entrega.
+Os dados do MySQL não são migrados automaticamente: crie o banco novo no Supabase e cadastre as contas de novo (em ambiente acadêmico é o caminho mais simples). Se precisar preservar contas reais, a migração de `users` exige cuidado com o `id` e com a sequência do Postgres, então faça-a à parte e com backup.
 
-## 5. Git e publicação
-Remova emails.log do rastreamento no repositório original (`git rm --cached --ignore-unmatch emails.log`) e apague a cópia local antiga após não precisar mais dela. A remoção atual não apaga o histórico do Git. A migração invalida tokens antigos no banco; se houve exposição de outras credenciais reais, substitua-as no provedor.
+Faça backup da pasta antes de atualizar e guarde seu `config.local.php` fora da cópia que vai ao GitHub. Substitua a aplicação pela pasta revisada, recoloque o arquivo local (trocando o bloco `db` pelo do Supabase) e execute `composer install`. Os scripts em `database/mysql_legado/` são apenas histórico: **não** execute no Supabase.
 
-Revise `git status` e `git diff`, registre as alterações e não inclua config.local.php nem vendor.
+## SMTP
 
-HTTP é apenas para localhost. Publicação em servidor exige HTTPS e configuração Apache equivalente; .htaccess não é aplicado por Nginx ou pelo servidor embutido do PHP. Esta entrega não é uma auditoria completa de produção.
+Preencha `smtp.host`, `port`, `user`, `pass`, `secure` e `from` no arquivo local. Use o remetente autorizado pelo provedor e senha de aplicativo quando exigida. Porta 587 costuma usar `tls`; porta 465, `ssl`. Não desative a validação de certificados.
+
+O login e o cadastro precisam do código por e-mail para concluir o acesso. A exclusão usa um código de oito dígitos, válido por dez minutos e com até cinco tentativas. Solicitar o código não exclui a conta.
+
+## Google
+
+O acesso Google é opcional. Configure o cliente OAuth Web e a URI de retorno exatamente igual a `base` acrescida de `?p=gcb`, por exemplo `http://localhost/fluxon_projeto-main/index.php?p=gcb`. Preencha `google.id` e `google.secret` localmente. Mesmo após o retorno do Google, o projeto exige o código de e-mail.
+
+## GitHub e arquivos privados
+
+O pacote não contém `config.local.php`, `emails.log` nem `vendor/`. A remoção do pacote não apaga arquivos ou histórico do repositório original. Se já estiverem rastreados, remova-os do índice do Git com `git rm --cached --ignore-unmatch config.local.php emails.log` e `git rm -r --cached --ignore-unmatch vendor` antes do commit, preservando as cópias locais necessárias. Credenciais anteriormente publicadas precisam ser substituídas no provedor.
+
+Confira as regras Apache: `app/`, `database/`, `html/`, `tests/` e `docs/` não precisam de acesso HTTP direto; configuração e arquivos internos também são bloqueados na raiz. O fluxo deve ser iniciado por `index.php`.
+
+## Aceitação manual
+
+- Cadastro, login e Google com confirmação por e-mail (as telas vêm de `html/`).
+- No Supabase, em **Table Editor**, conferir que as tabelas aparecem com RLS ativo e que a chave `anon` não lê `users`.
+- Senha incorreta, bloqueio, código expirado/incorreto e recuperação de senha.
+- Salvar perfil, foto, alíquota e preferências; reabrir e conferir persistência.
+- Conferir Dashboard e Configurações com e sem mensagens de sucesso.
+- Abrir Segurança, Suporte, FAQ, Sobre, Avaliação e Acessibilidade no computador e celular.
+- Conferir olho da senha, revelação breve do último caractere, ocultação ao sair e autofill.
+- Trocar tema/fonte e reabrir a página no mesmo navegador.
+- Em conta descartável: abrir política de exclusão, cancelar, solicitar código, rejeitar código incorreto e confirmar exclusão. Conferir que o login deixa de funcionar e dados vinculados são removidos.
+- Conferir respostas de acesso negado para configuração, SQL, testes e arquivos internos pelo Apache.
+
+Não use contas reais para o teste destrutivo de exclusão. Os testes automatizados incluídos não executam esse fluxo.

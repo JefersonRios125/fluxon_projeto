@@ -1,0 +1,20 @@
+.account-detail details {
+  padding: 14px 0;
+  border-bottom: 1px solid #c9cfc9;
+}
+.account-detail summary {
+  cursor: pointer;
+  font-weight: 600;
+  line-height: 1.5;
+}
+.account-detail nav p {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+}
+.account-detail dt {
+  margin-top: 16px;
+}
+.account-detail dd {
+  margin: 6px 0 0;
+}

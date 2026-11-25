@@ -1,0 +1,51 @@
+<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Diagnóstico de carregamento · Fluxon</title>
+<style>body{font:1rem/1.5 system-ui;max-width:48rem;margin:3rem auto;padding:0 1rem;color:#173f40}button{font:inherit;background:#173f40;color:white;padding:.6rem 1rem;border:0;border-radius:.4rem}td,th{padding:.5rem;border-bottom:1px solid #ccc;text-align:left}table{border-collapse:collapse;width:100%}</style>
+<h1>Diagnóstico de carregamento</h1><p>Entre na sua conta do Fluxon neste navegador. O teste abre o FAQ e o Dashboard três vezes cada e compara os tempos medianos em milissegundos.</p>
+<p><a href="index.php?p=login" target="_blank" rel="noopener">Abrir o Fluxon em outra aba</a></p>
+<button id="run">Medir carregamento</button><p id="status" role="status"></p><div id="results"></div>
+<script>
+const run = document.querySelector('#run'), statusText = document.querySelector('#status'), results = document.querySelector('#results');
+const median = values => values.slice().sort((a,b)=>a-b)[1];
+const stages = {
+  "abrir": "Abrir transação",
+  "isolamento": "Configurar isolamento",
+  "contas": "Listar contas",
+  "categorias": "Listar categorias",
+  "totais": "Calcular totais",
+  "saldo": "Calcular saldo e reservas",
+  "meses": "Gráfico mensal",
+  "despesas": "Gráfico por categoria",
+  "vencimentos": "Consultar vencimentos",
+  "fechar": "Concluir transação"
+};
+run.onclick = async () => {
+  run.disabled = true;
+  results.replaceChildren();
+  const samples = {faq:[],painel:[]};
+  try {
+    for(let round=1;round<=3;round++){
+      for(const page of Object.keys(samples)){
+        statusText.textContent = 'Rodada '+round+' de 3 · '+(page==='faq'?'FAQ':'Dashboard');
+        const start=performance.now();
+        const response=await fetch('index.php?p='+page+'&medir=1',{cache:'no-store'});
+        await response.text();
+        const metrics={total:performance.now()-start};
+        for(const match of (response.headers.get('Server-Timing')||'').matchAll(/([a-z]+);dur=([0-9.]+)/g)) metrics[match[1]]=Number(match[2]);
+        if (!response.ok || response.redirected || !('validacao' in metrics) || !('conexao' in metrics) || (page==='painel' && (!('dados' in metrics) || Object.keys(stages).some(key=>!(key in metrics))))) throw Error('Confira se está logado, se abriu pelo localhost e se copiou todos os arquivos da atualização.');
+        samples[page].push(metrics);
+      }
+    }
+    const table=document.createElement('table');
+    const header=table.createTHead().insertRow();
+    for(const title of ['Etapa','FAQ (ms)','Dashboard (ms)']){const cell=document.createElement('th');cell.textContent=title;header.append(cell);}
+    const body=table.createTBody();
+    for(const [key,label] of Object.entries({conexao:'Conectar ao banco',validacao:'Consultar a sessão no banco',dados:'Buscar dados financeiros',...stages,total:'Receber o HTML completo'})){
+      const row=body.insertRow();row.insertCell().textContent=label;
+      for(const entries of Object.values(samples)) row.insertCell().textContent=key in entries[0]?median(entries.map(x=>x[key])).toLocaleString('pt-BR',{maximumFractionDigits:1}):'—';
+    }
+    results.append(table);
+    const ranked=Object.entries(stages).map(([key,label])=>({label,ms:median(samples.painel.map(x=>x[key]))})).sort((a,b)=>b.ms-a.ms);
+    statusText.textContent='Etapa financeira mais demorada: '+ranked[0].label+' ('+ranked[0].ms.toLocaleString('pt-BR')+' ms). As etapas detalhadas já estão incluídas em Buscar dados financeiros.';
+  } catch(error){statusText.textContent=error.message;} finally {run.disabled=false;}
+};
+</script></html>
